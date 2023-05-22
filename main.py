@@ -6,23 +6,12 @@ import json
 import zlib
 
 
-# content = path.open("rb").read()
-# decompressed_content = zlib.decompress(content)
-# decoded_content = decompressed_content[:-33].decode("utf8")
-# suffix = decompressed_content[-33:-1]
-# salt = "stOne!characters_v1!character_1!save_1!shArd"
-# print(suffix)
-# # print(decoded_content)
-# # md5(json + salt) + null
-# print(hashlib.md5((decoded_content + salt).encode("utf8")).hexdigest())
-
-
 def decompress_stoneshard_sav(sav_path: Path) -> Dict:
     content = sav_path.open("rb").read()
     decompressed_content = zlib.decompress(content)
     decoded_content = decompressed_content[:-33].decode("utf8")
 
-    return json.loads(decoded_content)  # The json de/serialization
+    return json.loads(decoded_content)
 
 
 def generate_salt(sav_path: Path):
@@ -48,11 +37,43 @@ def compress_stoneshard_sav(content: Dict, sav_path: Path) -> Dict:
         output_file.write(compressed_content)
 
 
+def mutate_character(save_content: Dict, character_config: Dict):
+    character = save_content["characterDataMap"]
+
+    for key, value in character_config.items():
+        if key == "xp":
+            character["XP"] = value
+        elif key == "ability_points":
+            character["AP"] = value
+        elif key == "str":
+            character["STR"] = value
+        elif key == "level":
+            character["LVL"] = value
+
+
+def mutate_inventory(save_content: Dict, inventory_config: Dict):
+    inventory = save_content["inventoryDataList"]
+    for key, value, *ignored in inventory:
+        if inventory_config["moneybag"] and key == "o_inv_moneybag":
+            value["Stack"] = inventory_config["moneybag"]
+
+
 def main():
-    path = Path("character_1/save_1/data.sav")
-    content = decompress_stoneshard_sav(path)
-    print(json.dumps(content))
-    # compress_stoneshard_sav(content, path)
+    path = Path("character_1/exitsave_1/data.sav")
+
+    inventory_config = {"moneybag": 1998}  # todo load from json
+    character_config = {
+        "xp": 60000,
+        "ability_points": 20,
+    }  # todo load from json
+
+    save_content = decompress_stoneshard_sav(path)
+
+    mutate_character(save_content, character_config)
+
+    mutate_inventory(save_content, inventory_config)
+
+    compress_stoneshard_sav(save_content, path)
 
 
 if __name__ == "__main__":
